@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ahorcado · Corporación Hacia un Valle Solidario</title>
+  <meta name="description" content="Adivina la palabra de bienestar. Programa de bienestar de la Corporación Hacia un Valle Solidario.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script type="importmap">
+  { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  } }
+  </script>
+  <style>
+    /* Misma paleta y tipografía de citas_psicologia y cruciletras_psicologia. */
+    :root {
+      --marfil: #F4F1E8;
+      --marfil-claro: #FBFAF6;
+      --verde: #2D7A4F;
+      --verde-hondo: #1E5637;
+      --salvia: #A8C3B0;
+      --tinta: #22301F;
+      --tinta-suave: #5A6B5E;
+      --tenue: #8A8577;
+      --borde: rgba(34, 48, 31, .12);
+      --vidrio: rgba(251, 250, 246, .62);
+      --vidrio-borde: rgba(255, 255, 255, .78);
+      --sombra: 0 30px 80px -24px rgba(34, 48, 31, .32);
+      --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background:
+        radial-gradient(60vmax 60vmax at 12% 8%, rgba(168, 195, 176, .35), transparent 60%),
+        radial-gradient(50vmax 50vmax at 92% 96%, rgba(111, 169, 138, .22), transparent 60%),
+        var(--marfil);
+      color: var(--tinta);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+    .pagina { width: min(980px, 100%); margin: 0 auto; padding: clamp(28px, 6vw, 64px) 16px 48px; }
+    .encabezado { text-align: center; margin-bottom: 30px; }
+    .encabezado__sello { margin: 0 0 14px; font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--verde); }
+    .encabezado h1 { margin: 0 0 6px; font-family: var(--serif); font-weight: 500; font-size: clamp(36px, 7vw, 62px); line-height: 1.08; letter-spacing: -.01em; }
+    .encabezado__sub { margin: 0 0 18px; font-family: var(--serif); font-style: italic; font-size: clamp(20px, 3.4vw, 28px); color: var(--verde-hondo); }
+    .encabezado__texto { margin: 0 auto; max-width: 52ch; font-size: 15px; line-height: 1.8; color: var(--tinta-suave); }
+
+    .vidrio {
+      padding: clamp(18px, 3.5vw, 36px);
+      border-radius: 28px;
+      border: 1px solid var(--vidrio-borde);
+      background: var(--vidrio);
+      backdrop-filter: blur(22px) saturate(150%);
+      -webkit-backdrop-filter: blur(22px) saturate(150%);
+      box-shadow: var(--sombra);
+    }
+    .juego { display: grid; gap: 24px; }
+
+    /* ------------------------------------------------------------ escena 3D */
+    .escena {
+      position: relative;
+      height: clamp(340px, 95vw, 520px);
+      border-radius: 22px;
+      overflow: hidden;
+      background: radial-gradient(80% 70% at 50% 35%, #fff, rgba(255, 255, 255, .6) 60%, rgba(168, 195, 176, .35));
+      box-shadow: inset 0 0 0 1px var(--vidrio-borde);
+    }
+    .escena canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+    .escena canvas:active { cursor: grabbing; }
+    .escena__ayuda {
+      position: absolute; left: 0; right: 0; bottom: 12px;
+      text-align: center; font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--tenue); pointer-events: none;
+    }
+
+    /* ------------------------------------------------------------ panel de juego */
+    .panel { display: grid; gap: 18px; justify-items: center; align-content: center; }
+    .vidas { margin: 0; font-size: 22px; letter-spacing: .15em; color: #d9534f; }
+    .corazon { display: inline-block; transition: transform 300ms ease, color 300ms ease, opacity 300ms ease; }
+    .corazon.perdido { color: var(--salvia); opacity: .6; transform: scale(.7); }
+    .pista { margin: 0; max-width: 34ch; text-align: center; font-family: var(--serif); font-style: italic; font-size: 20px; line-height: 1.4; color: var(--verde-hondo); }
+
+    .palabra { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .palabra span {
+      display: grid; place-items: center;
+      width: clamp(28px, 7vw, 40px);
+      height: clamp(38px, 9vw, 50px);
+      border-radius: 10px;
+      background: linear-gradient(#fff, #e9efe9);
+      box-shadow: 0 4px 0 var(--salvia), 0 10px 14px -6px rgba(34, 48, 31, .3);
+      font-family: var(--serif);
+      font-size: clamp(24px, 6vw, 32px);
+      font-weight: 500;
+      color: var(--verde-hondo);
+    }
+    .palabra span.abierta { animation: voltear 500ms cubic-bezier(.34, 1.56, .64, 1); }
+    @keyframes voltear { from { transform: rotateX(90deg); } to { transform: none; } }
+
+    .teclado { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; max-width: 440px; }
+    .teclado button {
+      width: clamp(36px, 10vw, 46px);
+      aspect-ratio: 1;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, .9);
+      border-radius: 10px;
+      background: linear-gradient(#fff, #e9efe9);
+      box-shadow: 0 4px 0 var(--salvia), 0 8px 12px -4px rgba(34, 48, 31, .3);
+      color: var(--tinta);
+      font: 600 15px var(--sans);
+      cursor: pointer;
+      transition: background 220ms ease, color 220ms ease, transform 120ms ease, box-shadow 120ms ease;
+    }
+    .teclado button:hover:not(:disabled) { transform: translateY(-2px); }
+    .teclado button:active:not(:disabled), .teclado button:disabled { transform: translateY(4px); box-shadow: none; }
+    .teclado button:focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; }
+    .teclado button:disabled { cursor: default; }
+    .teclado button.acierto { background: linear-gradient(#3f9565, var(--verde)); color: var(--marfil-claro); }
+    .teclado button.fallo { background: rgba(168, 195, 176, .3); color: var(--tenue); text-decoration: line-through; }
+
+    /* ------------------------------------------------------------ mensaje final */
+    .final {
+      position: fixed; inset: 0; z-index: 5;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+      background: rgba(244, 241, 232, .55);
+      opacity: 0; pointer-events: none;
+      transition: opacity 420ms ease;
+    }
+    .final.visible { opacity: 1; pointer-events: auto; }
+    .final .vidrio {
+      position: relative; width: min(620px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto;
+      text-align: center; background: rgba(251, 250, 246, .9);
+      transform: translateY(22px) scale(.985);
+      transition: transform 520ms cubic-bezier(.16, 1, .3, 1);
+    }
+    .final.visible .vidrio { transform: none; }
+    .final h2 { margin: 6px 0 16px; font-family: var(--serif); font-weight: 500; font-size: clamp(28px, 5vw, 38px); line-height: 1.15; }
+    .final p { margin: 0 auto 14px; max-width: 48ch; font-size: 15px; line-height: 1.8; color: var(--tinta-suave); }
+    .final__cierre { font-family: var(--serif); font-style: italic; font-size: 21px !important; color: var(--verde-hondo) !important; }
+    .boton {
+      display: inline-flex; align-items: center; justify-content: center;
+      margin: 10px 0 14px; padding: 16px 28px;
+      border: 1px solid var(--verde); border-radius: 999px;
+      background: var(--verde); color: var(--marfil-claro);
+      font: 600 13px/1.5 var(--sans); letter-spacing: .12em; text-transform: uppercase; text-decoration: none;
+      transition: background 300ms ease, transform 300ms ease, box-shadow 300ms ease;
+    }
+    .boton:hover { background: var(--verde-hondo); transform: translateY(-2px); box-shadow: 0 16px 34px -16px rgba(30, 86, 55, .8); }
+    .otra {
+      display: block; margin: 0 auto 18px; padding: 8px;
+      border: 0; background: none; cursor: pointer;
+      font: 400 13px var(--sans); color: var(--tenue);
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .otra:hover { color: var(--verde-hondo); }
+    .pie { margin-top: 26px; text-align: center; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--tenue); }
+
+    @media (min-width: 820px) {
+      .juego { grid-template-columns: 1fr 1fr; align-items: center; }
+      .escena { height: 560px; }
+    }
+    @media (max-width: 760px) {
+      .vidrio { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(251, 250, 246, .88); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="pagina">
+    <header class="encabezado">
+      <p class="encabezado__sello">Corporación Hacia un Valle Solidario</p>
+      <h1>Tu mente tiene un reto.</h1>
+      <p class="encabezado__sub">Tu bienestar, un mensaje para ti.</p>
+      <p class="encabezado__texto">Adivina la palabra de bienestar antes de que el muñeco quede completo. Toca las letras o usa tu teclado.</p>
+    </header>
+
+    <section class="vidrio juego">
+      <div class="escena" id="escena">
+        <span class="escena__ayuda">Arrastra para girar</span>
+      </div>
+      <div class="panel">
+        <p class="vidas" id="vidas" aria-live="polite"></p>
+        <p class="pista" id="pista"></p>
+        <div class="palabra" id="palabra" aria-live="polite"></div>
+        <div class="teclado" id="teclado"></div>
+      </div>
+    </section>
+
+    <p class="pie">Haz una pausa y acepta el reto</p>
+  </main>
+
+  <div class="final" id="final" aria-hidden="true">
+    <div class="vidrio" role="dialog" aria-modal="true" aria-labelledby="final-titulo">
+      <h2 id="final-titulo"></h2>
+      <p id="final-palabra"></p>
+      <p>
+        A veces, una palabra nos recuerda algo que necesitamos: hacer una pausa, poner un límite,
+        hablar de lo que sentimos o simplemente ser escuchados.
+      </p>
+      <p>
+        En CHVS contamos con un espacio para escucharte, acompañarte y ayudarte a encontrar nuevas
+        maneras de afrontar lo que estás viviendo.
+      </p>
+      <a class="boton" href="https://web-production-0552d9.up.railway.app/">
+        Agenda tu cita psicológica haciendo clic aquí
+      </a>
+      <button type="button" class="otra" id="otra">Jugar con otra palabra</button>
+      <p class="final__cierre">Tu bienestar también merece un espacio.</p>
+    </div>
+  </div>
+
+  <!-- ============================== LÓGICA DEL JUEGO ============================== -->
+  <script>
+    (function () {
+      "use strict";
+
+      const PISTAS = {
+        "AYUDA": "Pedirla es de valientes",
+        "LÍMITES": "Decir \"no\" también es cuidarte",
+        "ESCUCHA": "Alguien que te atiende sin juzgar",
+        "PAUSA": "Un respiro en medio del afán",
+        "HABLAR": "Compartir lo que sientes alivia",
+        "CALMA": "Lo que buscas cuando todo se acelera",
+        "APOYO": "Nadie tiene que cargar solo",
+        "BIENESTAR": "Estar bien por dentro y por fuera",
+        "RESPIRAR": "Inhala despacio, exhala más despacio",
+        "ACOMPAÑAMIENTO": "Caminar junto a otros"
+      };
+      const PALABRAS = Object.keys(PISTAS);
+      const VIDAS = 6;
+      const LETRAS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+      const clave = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const $ = (id) => document.getElementById(id);
+      // El módulo 3D lee este estado y escucha el evento "ahorcado".
+      const estado = window.ahorcado = { fallos: 0, perdio: false };
+      const avisar = (detail) => document.dispatchEvent(new CustomEvent("ahorcado", { detail }));
+
+      let palabra, usadas, ultima = "", casillas = [];
+
+      function nueva() {
+        do { palabra = PALABRAS[Math.floor(Math.random() * PALABRAS.length)]; } while (palabra === ultima);
+        ultima = palabra;
+        usadas = new Set();
+        estado.fallos = 0;
+        estado.perdio = false;
+        $("pista").textContent = "Pista: " + PISTAS[palabra];
+        $("palabra").innerHTML = "";
+        casillas = [...palabra].map(() => $("palabra").appendChild(document.createElement("span")));
+        $("final").classList.remove("visible");
+        $("final").setAttribute("aria-hidden", "true");
+        $("teclado").querySelectorAll("button").forEach((b) => { b.disabled = false; b.className = ""; });
+        pintar();
+        avisar({ tipo: "reinicio" });
+      }
+
+      function pintar() {
+        [...palabra].forEach((l, i) => {
+          const s = casillas[i];
+          const mostrar = usadas.has(clave(l)) || estado.perdio;
+          if (mostrar && !s.classList.contains("abierta")) { s.textContent = l; s.classList.add("abierta"); }
+        });
+        let h = "";
+        for (let i = 0; i < VIDAS; i++) h += '<span class="corazon' + (i < estado.fallos ? " perdido" : "") + '">&#9829;</span>';
+        $("vidas").innerHTML = h;
+        $("vidas").setAttribute("aria-label", "Intentos restantes: " + (VIDAS - estado.fallos));
+      }
+
+      function jugar(letra) {
+        if (usadas.has(letra) || estado.perdio) return;
+        usadas.add(letra);
+        const acierto = clave(palabra).includes(letra);
+        if (!acierto) { estado.fallos++; avisar({ tipo: "fallo" }); }
+        const b = [...$("teclado").children].find((x) => x.textContent === letra);
+        b.disabled = true;
+        b.classList.add(acierto ? "acierto" : "fallo");
+
+        const gano = [...palabra].every((l) => usadas.has(clave(l)));
+        estado.perdio = !gano && estado.fallos >= VIDAS;
+        pintar();
+        if (gano || estado.perdio) {
+          avisar({ tipo: "fin", gano });
+          setTimeout(() => final(gano), 1400);
+        }
+      }
+
+      function final(gano) {
+        $("final-titulo").textContent = gano ? "¡Lo lograste!" : "No pasa nada, inténtalo de nuevo";
+        $("final-palabra").textContent = "La palabra era: " + palabra + ".";
+        $("final").classList.add("visible");
+        $("final").setAttribute("aria-hidden", "false");
+        $("final").querySelector(".boton").focus({ preventScroll: true });
+      }
+
+      for (const l of LETRAS) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = l;
+        b.addEventListener("click", () => jugar(l));
+        $("teclado").appendChild(b);
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey || $("final").classList.contains("visible")) return;
+        const l = clave(e.key).toUpperCase();
+        if (l.length === 1 && LETRAS.includes(l)) jugar(l);
+      });
+
+      $("otra").addEventListener("click", nueva);
+      nueva();
+    })();
+  </script>
+
+  <!-- ============================== ESCENA 3D (three.js) ============================== -->
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+    import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+
+    const cont = document.getElementById("escena");
+    const calma = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      cont.hidden = true;   // sin WebGL el juego sigue funcionando igual
+      throw e;
+    }
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    cont.prepend(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.45;
+
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 60);
+    camera.position.set(1.3, 3.3, 10.8);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 2.1, 0);
+    controls.enablePan = false;
+    controls.enableZoom = false;
+    controls.enableDamping = true;
+    controls.minPolarAngle = 1.05;
+    controls.maxPolarAngle = 1.55;
+    controls.minAzimuthAngle = -0.8;
+    controls.maxAzimuthAngle = 1.0;
+    controls.autoRotate = !calma;
+    controls.autoRotateSpeed = 1.2;
+    renderer.domElement.style.touchAction = "pan-y";   // en celular, el scroll vertical sigue funcionando
+    let pausa;
+    controls.addEventListener("start", () => { controls.autoRotate = false; clearTimeout(pausa); });
+    controls.addEventListener("end", () => { pausa = setTimeout(() => { controls.autoRotate = !calma; }, 3500); });
+
+    // Luces: suave y de estudio, como la referencia.
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xf0e4d2, 0.5));
+    const sol = new THREE.DirectionalLight(0xfff3e2, 2.0);
+    sol.position.set(-5, 9, 7);
+    sol.castShadow = true;
+    sol.shadow.mapSize.set(2048, 2048);
+    Object.assign(sol.shadow.camera, { left: -6, right: 6, top: 7, bottom: -4, near: 1, far: 30 });
+    sol.shadow.bias = -0.0004;
+    sol.shadow.normalBias = 0.03;
+    scene.add(sol);
+
+    // ---------------------------------------------------------------- materiales
+    function granoMadera() {
+      const c = document.createElement("canvas");
+      c.width = c.height = 256;
+      const g = c.getContext("2d");
+      g.fillStyle = "#d9731f";
+      g.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 110; i++) {
+        const y = Math.random() * 256, dy = Math.random() * 8 - 4;
+        g.strokeStyle = Math.random() < 0.55
+          ? "rgba(150,72,18," + (0.08 + Math.random() * 0.14) + ")"
+          : "rgba(255,214,150," + (0.08 + Math.random() * 0.14) + ")";
+        g.lineWidth = 1 + Math.random() * 3;
+        g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(80, y + dy, 170, y - dy, 256, y); g.stroke();   // empieza y termina en y: sin costura
+      }
+      for (let i = 0; i < 3; i++) {   // nudos
+        const x = Math.random() * 256, y = Math.random() * 256;
+        g.strokeStyle = "rgba(120,55,12,.35)";
+        for (let r = 3; r < 12; r += 3) { g.lineWidth = 1.5; g.beginPath(); g.ellipse(x, y, r * 1.8, r, 0, 0, 7); g.stroke(); }
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 4;
+      return t;
+    }
+    const GRANO = granoMadera();
+    const madera = (rx, ry, vertical = false) => {
+      const t = GRANO.clone();
+      t.needsUpdate = true;
+      t.repeat.set(rx, ry);
+      if (vertical) { t.center.set(0.5, 0.5); t.rotation = Math.PI / 2; }   // la veta sigue el largo de la pieza
+      return new THREE.MeshStandardMaterial({ map: t, roughness: 0.62 });
+    };
+    const arcilla = new THREE.MeshStandardMaterial({ color: 0xdadbdd, roughness: 0.88 });
+    const metal = new THREE.MeshStandardMaterial({ color: 0x8e949b, roughness: 0.35, metalness: 0.85 });
+    const cuero = new THREE.MeshStandardMaterial({ color: 0x4a2c18, roughness: 0.8 });
+
+    function caja(w, h, d, mat, x, y, z, padre = scene) {
+      const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, 0.035), mat);
+      m.position.set(x, y, z);
+      m.castShadow = m.receiveShadow = true;
+      padre.add(m);
+      return m;
+    }
+
+    // ---------------------------------------------------------------- horca y plataforma
+    caja(0.32, 4.45, 0.32, madera(1, 3, true), -1.55, 2.225, 0);              // poste
+    caja(2.6, 0.3, 0.34, madera(3, 1), -0.6, 4.3, 0);                          // viga
+    const refuerzo = caja(0.2, 1.36, 0.2, madera(1, 2, true), -0.92, 3.675, 0);
+    refuerzo.rotation.z = -Math.PI / 4;
+    const clavija = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.1, 16), metal);
+    clavija.position.set(0, 4.1, 0);
+    scene.add(clavija);
+
+    for (let i = 0; i < 7; i++) caja(3.9, 0.14, 0.38, madera(3, 0.5), 0, -0.07, (i - 3) * 0.42);   // tablones
+    const marco = madera(2, 0.4);
+    caja(3.7, 0.22, 0.14, marco, 0, -0.28, 1.2);
+    caja(3.7, 0.22, 0.14, marco, 0, -0.28, -1.2);
+    caja(0.14, 0.22, 2.5, marco, 1.78, -0.28, 0);
+    caja(0.14, 0.22, 2.5, marco, -1.78, -0.28, 0);
+    for (const x of [-1.78, 1.78]) for (const z of [-1.2, 1.2]) caja(0.22, 0.62, 0.22, madera(1, 1, true), x, -0.39, z);
+    caja(3.7, 0.12, 0.12, marco, 0, -0.62, 1.2);
+    caja(3.7, 0.12, 0.12, marco, 0, -0.62, -1.2);
+
+    const suelo = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.ShadowMaterial({ opacity: 0.14 }));
+    suelo.rotation.x = -Math.PI / 2;
+    suelo.position.y = -0.7;
+    suelo.receiveShadow = true;
+    scene.add(suelo);
+
+    // ---------------------------------------------------------------- lo que cuelga: argolla, sombrero y muñeco
+    const colgante = new THREE.Group();
+    colgante.position.set(0, 4.1, 0);
+    scene.add(colgante);
+
+    const argolla = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.03, 12, 32), metal);
+    argolla.position.y = -0.15;
+    argolla.castShadow = true;
+    colgante.add(argolla);
+    const correa = new THREE.Mesh(new RoundedBoxGeometry(0.07, 0.36, 0.05, 2, 0.02), cuero);
+    correa.position.y = -0.48;
+    colgante.add(correa);
+
+    // Sombrero vaquero: revolución + alas dobladas hacia arriba a los lados.
+    const perfil = [[0, 0.46], [0.15, 0.5], [0.3, 0.52], [0.4, 0.5], [0.46, 0.4], [0.5, 0.2], [0.52, 0], [0.75, -0.03], [1.1, -0.02], [1.35, 0.04],
+                    [1.37, 0.01], [1.34, -0.03], [1.1, -0.08], [0.75, -0.09], [0.5, -0.06]].map(([x, y]) => new THREE.Vector2(x, y));
+    const geoSombrero = new THREE.LatheGeometry(perfil, 64);
+    const p = geoSombrero.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), z = p.getZ(i), r = Math.hypot(x, z);
+      const w = Math.min(Math.max((r - 0.5) / 0.85, 0), 1);
+      p.setY(i, p.getY(i) + w * (0.17 * (x / 1.35) ** 2 - 0.04 * (z / 1.35) ** 2));
+    }
+    geoSombrero.computeVertexNormals();
+    const sombrero = new THREE.Group();
+    const copa = new THREE.Mesh(geoSombrero, new THREE.MeshStandardMaterial({ color: 0x9b6035, roughness: 0.72, side: THREE.DoubleSide }));
+    copa.castShadow = copa.receiveShadow = true;
+    const cinta = new THREE.Mesh(new THREE.TorusGeometry(0.515, 0.04, 10, 64), new THREE.MeshStandardMaterial({ color: 0x4a2c18, roughness: 0.6 }));
+    cinta.rotation.x = Math.PI / 2;
+    cinta.position.y = 0.08;
+    sombrero.add(copa, cinta);
+    sombrero.position.y = -1.15;
+    colgante.add(sombrero);
+
+    // Muñeco de arcilla: aparece una pieza por cada error.
+    const pieza = (geo, x, y, z) => {
+      const m = new THREE.Mesh(geo, arcilla);
+      m.position.set(x, y, z);
+      m.castShadow = m.receiveShadow = true;
+      return m;
+    };
+    const cabeza = new THREE.Group();
+    cabeza.position.set(0, -1.49, 0);
+    cabeza.add(pieza(new THREE.SphereGeometry(0.58, 48, 32), 0, 0, 0));
+    cabeza.children[0].scale.set(1, 1.02, 0.95);
+
+    const torso = new THREE.Group();
+    torso.position.set(0, -2.6, 0);
+    torso.add(pieza(new THREE.CapsuleGeometry(0.4, 0.45, 8, 24), 0, 0, 0));
+    torso.children[0].scale.z = 0.85;
+
+    const brazo = (lado) => {
+      const g = new THREE.Group();
+      g.position.set(lado * 0.4, -2.35, 0);
+      g.rotation.z = lado * 0.95;
+      g.add(pieza(new THREE.CapsuleGeometry(0.13, 0.42, 8, 16), 0, -0.3, 0));
+      g.userData.base = g.rotation.z;
+      return g;
+    };
+    const pierna = (lado) => {
+      const g = new THREE.Group();
+      g.position.set(lado * 0.19, -3.05, 0);
+      g.rotation.z = lado * 0.06;
+      g.add(pieza(new THREE.CapsuleGeometry(0.18, 0.45, 8, 16), 0, -0.4, 0));
+      g.userData.base = g.rotation.z;
+      return g;
+    };
+    const brazoI = brazo(-1), brazoD = brazo(1), piernaI = pierna(-1), piernaD = pierna(1);
+
+    // Orden de aparición: cabeza, cuerpo, brazos y piernas.
+    const piezas = [cabeza, torso, brazoI, brazoD, piernaI, piernaD].map((o) => {
+      o.scale.setScalar(0.001);
+      o.visible = false;
+      colgante.add(o);
+      return { o, t: 0, on: false };
+    });
+    const salida = (t) => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2;   // easeOutBack
+
+    // ---------------------------------------------------------------- confeti al ganar
+    const N = 160;
+    const pos = new Float32Array(N * 3), vel = new Float32Array(N * 3), col = new Float32Array(N * 3);
+    const geoConf = new THREE.BufferGeometry();
+    geoConf.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geoConf.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const disco = (() => {
+      const c = document.createElement("canvas");
+      c.width = c.height = 32;
+      const g = c.getContext("2d");
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(16, 16, 15, 0, 7); g.fill();
+      return new THREE.CanvasTexture(c);
+    })();
+    const matConf = new THREE.PointsMaterial({ size: 0.17, vertexColors: true, transparent: true, depthWrite: false, map: disco });
+    const confeti = new THREE.Points(geoConf, matConf);
+    confeti.visible = false;
+    confeti.frustumCulled = false;
+    scene.add(confeti);
+    const PALETA = ["#2D7A4F", "#6FA98A", "#A8C3B0", "#f2c14e", "#e8756b", "#ffffff"].map((c) => new THREE.Color(c));
+    let tConf = -1;
+
+    function lanzar() {
+      for (let i = 0; i < N; i++) {
+        pos.set([(Math.random() - 0.5) * 0.6, 4.7, 0.6 + Math.random() * 0.4], i * 3);
+        vel.set([(Math.random() - 0.5) * 6, 3 + Math.random() * 5, (Math.random() - 0.3) * 4], i * 3);
+        const c = PALETA[i % PALETA.length];
+        col.set([c.r, c.g, c.b], i * 3);
+      }
+      geoConf.attributes.color.needsUpdate = true;
+      tConf = 0;
+      matConf.opacity = 1;
+      confeti.visible = true;
+    }
+
+    // ---------------------------------------------------------------- conexión con el juego
+    const est = window.ahorcado;
+    function sincronizar(reinicio) {
+      piezas.forEach((q, i) => {
+        q.on = i < est.fallos;
+        if (reinicio) { q.t = 0; q.o.scale.setScalar(0.001); q.o.visible = false; }
+      });
+    }
+    document.addEventListener("ahorcado", (e) => {
+      const d = e.detail;
+      if (d.tipo === "reinicio") { sincronizar(true); tConf = -1; confeti.visible = false; }
+      else if (d.tipo === "fallo") sincronizar(false);
+      else if (d.tipo === "fin" && d.gano && !calma) lanzar();
+    });
+    sincronizar(true);
+
+    // ---------------------------------------------------------------- tamaño y bucle
+    new ResizeObserver(() => {
+      const w = cont.clientWidth, h = cont.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      // En pantallas angostas se abre el campo de visión para que la horca siga entrando completa.
+      camera.fov = camera.aspect >= 0.95 ? 36 : (2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(18)) * 0.95 / camera.aspect) * 180) / Math.PI;
+      camera.updateProjectionMatrix();
+    }).observe(cont);
+
+    let previo = performance.now();
+    renderer.setAnimationLoop((ahora) => {
+      const dt = Math.min((ahora - previo) / 1000, 0.05);
+      previo = ahora;
+      const t = ahora / 1000;
+
+      let visibles = 0;
+      for (const q of piezas) {
+        if (q.on && q.t < 1) q.t = Math.min(q.t + dt / 0.55, 1);
+        if (q.on) {
+          visibles++;
+          q.o.visible = true;
+          q.o.scale.setScalar(Math.max(salida(q.t), 0.001));
+        }
+      }
+
+      // Balanceo suave colgando de la argolla; crece un poco con cada pieza.
+      if (!calma) {
+        const amp = 0.012 + visibles * 0.005 + (est.perdio ? 0.012 : 0);
+        colgante.rotation.z = Math.sin(t * 1.3) * amp;
+        colgante.rotation.x = Math.sin(t * 0.9) * amp * 0.5;
+        for (const [g, f] of [[brazoI, 0], [brazoD, 1.6], [piernaI, 3.1], [piernaD, 4.7]]) g.rotation.z = g.userData.base + Math.sin(t * 1.6 + f) * 0.05;
+      }
+
+      // Cámara que pasea de lado a lado sin salirse de los límites.
+      if (controls.autoRotate) {
+        const az = controls.getAzimuthalAngle();
+        if (az > 0.8) controls.autoRotateSpeed = Math.abs(controls.autoRotateSpeed);
+        else if (az < -0.6) controls.autoRotateSpeed = -Math.abs(controls.autoRotateSpeed);
+      }
+
+      if (tConf >= 0) {
+        tConf += dt;
+        for (let i = 0; i < N; i++) {
+          vel[i * 3 + 1] -= 7 * dt;
+          for (let k = 0; k < 3; k++) pos[i * 3 + k] += vel[i * 3 + k] * dt;
+        }
+        geoConf.attributes.position.needsUpdate = true;
+        matConf.opacity = Math.min(Math.max(1 - (tConf - 2.5) / 1.2, 0), 1);
+        if (tConf > 3.7) { confeti.visible = false; tConf = -1; }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    });
+  </script>
+  <!-- Contador de visitas (hits.sh, sin cuenta). Ver conteo: https://hits.sh/erpplaneacion-eng.github.io/ahorcado_psicologia.svg?view=today-total -->
+  <img src="https://hits.sh/erpplaneacion-eng.github.io/ahorcado_psicologia.svg" alt="" width="1" height="1" style="position:absolute;opacity:0">
+</body>
+</html>
